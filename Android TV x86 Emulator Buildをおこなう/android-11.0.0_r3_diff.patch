@@ -1,0 +1,52 @@
+diff --git a/device/google/atv/permissions/tv_core_hardware.xml b/device/google/atv/permissions/tv_core_hardware.xml
+index 3f01e14..b2ad7f6 100644
+--- a/device/google/atv/permissions/tv_core_hardware.xml
++++ b/device/google/atv/permissions/tv_core_hardware.xml
+@@ -37,5 +37,6 @@
+     <feature name="android.software.autofill" />
+ 
+     <feature name="android.software.cts" />
++    <feature name="android.hardware.tv.tuner" />
+ 
+ </permissions>
+diff --git a/device/google/atv/permissions/tv_sdk_excluded_core_hardware.xml b/device/google/atv/permissions/tv_sdk_excluded_core_hardware.xml
+index f5b57fd..1d1a95f 100644
+--- a/device/google/atv/permissions/tv_sdk_excluded_core_hardware.xml
++++ b/device/google/atv/permissions/tv_sdk_excluded_core_hardware.xml
+@@ -41,4 +41,7 @@
+         and to date it is not designed to be rotated.
+     -->
+     <unavailable-feature name="android.hardware.screen.portrait" />
++
++    <unavailable-feature name="android.hardware.bluetooth" />
++    <unavailable-feature name="android.hardware.bluetooth_le" />
+ </permissions>
+diff --git a/device/google/atv/products/AndroidProducts.mk b/device/google/atv/products/AndroidProducts.mk
+index bd75dca..c0ceca4 100644
+--- a/device/google/atv/products/AndroidProducts.mk
++++ b/device/google/atv/products/AndroidProducts.mk
+@@ -37,3 +37,7 @@ PRODUCT_MAKEFILES := \
+     $(LOCAL_DIR)/aosp_tv_x86.mk \
+     $(LOCAL_DIR)/sdk_atv_armv7.mk \
+     $(LOCAL_DIR)/sdk_atv_x86.mk
++
++COMMON_LUNCH_CHOICES := \
++    sdk_atv_x86-eng \
++
+diff --git a/device/google/atv/products/sdk_atv_x86.mk b/device/google/atv/products/sdk_atv_x86.mk
+index d6363f3..4c07c86 100644
+--- a/device/google/atv/products/sdk_atv_x86.mk
++++ b/device/google/atv/products/sdk_atv_x86.mk
+@@ -30,6 +30,12 @@ $(call inherit-product, development/build/product_sdk.mk)
+ PRODUCT_PACKAGES += \
+     EmulatorSmokeTests
+ 
++PRODUCT_COPY_FILES += \
++    device/google/atv/permissions/tv_core_hardware.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/tv_core_hardware.xml
++
++# Tuner HAL
++PRODUCT_PACKAGES += android.hardware.tv.tuner@1.0-service
++
+ # Overrides
+ PRODUCT_BRAND := Android
+ PRODUCT_NAME := sdk_atv_x86

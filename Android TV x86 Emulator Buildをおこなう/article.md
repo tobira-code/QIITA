@@ -8,66 +8,79 @@ slide: false
 Android TV x86 Emulator Buildの方法を説明します。
 
 # Version / Repo sync
-android-10.0.0_r25 を使用します。取得方法は次の通りです。
+android-11.0.0_r3 を使用します。取得方法は次の通りです。
+$HOMEで実行します。
 
 ```
-mkdir android-10.0.0_r25
-cd android-10.0.0_r25
-repo init -u https://android.googlesource.com/platform/manifest -b android-10.0.0_r25 --depth=1
-repo sync -j8
+mkdir android-11.0.0_r3
+cd android-11.0.0_r3
+repo init -u https://android.googlesource.com/platform/manifest -b android-11.0.0_r3 --depth=1
+repo sync -j`nproc`
 ```
 
 # Custom
 次のパッチを適用します。
 
-```
-diff --git a/device/google/atv/permissions/privapp-permissions-atv-gsi.xml b/device/google/atv/permissions/privapp-permissions-atv-gsi.xml
-index 92550a9..30a01ef 100644
---- a/device/google/atv/permissions/privapp-permissions-atv-gsi.xml
-+++ b/device/google/atv/permissions/privapp-permissions-atv-gsi.xml
-@@ -25,6 +25,7 @@
-         <permission name="android.permission.USE_RESERVED_DISK"/>
-         <permission name="android.permission.WRITE_MEDIA_STORAGE"/>
-         <permission name="android.permission.WRITE_SECURE_SETTINGS"/>
-+        <permission name="android.permission.MANAGE_DEBUGGING"/>
-     </privapp-permissions>
+```c:diff.patch
+diff --git a/device/google/atv/permissions/tv_core_hardware.xml b/device/google/atv/permissions/tv_core_hardware.xml
+index 3f01e14..b2ad7f6 100644
+--- a/device/google/atv/permissions/tv_core_hardware.xml
++++ b/device/google/atv/permissions/tv_core_hardware.xml
+@@ -37,5 +37,6 @@
+     <feature name="android.software.autofill" />
  
-     <privapp-permissions package="com.google.android.tv">
+     <feature name="android.software.cts" />
++    <feature name="android.hardware.tv.tuner" />
+ 
+ </permissions>
+diff --git a/device/google/atv/permissions/tv_sdk_excluded_core_hardware.xml b/device/google/atv/permissions/tv_sdk_excluded_core_hardware.xml
+index f5b57fd..1d1a95f 100644
+--- a/device/google/atv/permissions/tv_sdk_excluded_core_hardware.xml
++++ b/device/google/atv/permissions/tv_sdk_excluded_core_hardware.xml
+@@ -41,4 +41,7 @@
+         and to date it is not designed to be rotated.
+     -->
+     <unavailable-feature name="android.hardware.screen.portrait" />
++
++    <unavailable-feature name="android.hardware.bluetooth" />
++    <unavailable-feature name="android.hardware.bluetooth_le" />
+ </permissions>
 diff --git a/device/google/atv/products/AndroidProducts.mk b/device/google/atv/products/AndroidProducts.mk
-index 8c1ed22..3268100 100644
+index bd75dca..c0ceca4 100644
 --- a/device/google/atv/products/AndroidProducts.mk
 +++ b/device/google/atv/products/AndroidProducts.mk
-@@ -34,3 +34,9 @@
- PRODUCT_MAKEFILES := \
-     $(LOCAL_DIR)/aosp_atv_arm_ab.mk \
-     $(LOCAL_DIR)/aosp_atv_arm64_ab.mk
-+
-+PRODUCT_MAKEFILES := \
-+    $(LOCAL_DIR)/sdk_atv_x86.mk \
+@@ -37,3 +37,7 @@ PRODUCT_MAKEFILES := \
+     $(LOCAL_DIR)/aosp_tv_x86.mk \
+     $(LOCAL_DIR)/sdk_atv_armv7.mk \
+     $(LOCAL_DIR)/sdk_atv_x86.mk
 +
 +COMMON_LUNCH_CHOICES := \
 +    sdk_atv_x86-eng \
++
 diff --git a/device/google/atv/products/sdk_atv_x86.mk b/device/google/atv/products/sdk_atv_x86.mk
-index b897416..8d58a9d 100644
+index d6363f3..4c07c86 100644
 --- a/device/google/atv/products/sdk_atv_x86.mk
 +++ b/device/google/atv/products/sdk_atv_x86.mk
-@@ -24,6 +24,17 @@ PRODUCT_COPY_FILES += \
-     device/generic/goldfish/data/etc/encryptionkey.img:encryptionkey.img \
-     prebuilts/qemu-kernel/x86_64/4.14/kernel-qemu2:kernel-ranchu-64
+@@ -30,6 +30,12 @@ $(call inherit-product, development/build/product_sdk.mk)
+ PRODUCT_PACKAGES += \
+     EmulatorSmokeTests
  
-+# privapp-permissions whitelisting
 +PRODUCT_COPY_FILES += \
-+    device/google/atv/permissions/privapp-permissions-atv-gsi.xml:system/etc/permissions/privapp-permissions-atv-gsi.xml
++    device/google/atv/permissions/tv_core_hardware.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/tv_core_hardware.xml
 +
-+# Packages required for ATV GSI
-+PRODUCT_PACKAGES += \
-+    FrameworkPackageStubs \
-+    LatinIMEGoogleTvPrebuilt \
-+    TvProvision \
-+    TvSampleLeanbackLauncher
++# Tuner HAL
++PRODUCT_PACKAGES += android.hardware.tv.tuner@1.0-service
 +
- # TODO: separate out a common base for arm/x86 atv SDK build.
- $(call inherit-product, device/google/atv/products/sdk_atv_armv7.mk)
+ # Overrides
+ PRODUCT_BRAND := Android
+ PRODUCT_NAME := sdk_atv_x86
+```
+
+上記をdiff.patchの名前で保存します。
+AOSP Top Directory で次のコマンドを実行してパッチを適用します。
+
+```bash:
+patch -p1 < diff.patch
 ```
 
 # Lunch
@@ -75,5 +88,49 @@ index b897416..8d58a9d 100644
 ```
 source build/envsetup.sh
 lunch sdk_atv_x86-eng
-time make -j8 2>&1 | tee make_`date +%Y%m%d%H%M%S`.log
+time make -j`nproc` 2>&1 | tee make_`date +%Y%m%d%H%M%S`.log
+```
+
+# Shrink out directory
+
+```bash:shrink_out.sh
+SRC=$HOME/android-11.0.0_r3
+DST=shrink_out_android-11.0.0_r3
+
+mkdir $DST
+cd $DST
+cp -r $SRC/prebuilts/android-emulator/linux-x86_64 .
+mkdir -p out/target/product/generic_x86
+mkdir -p out/target/product/generic_x86/system
+
+cp $SRC/out/target/product/generic_x86/kernel-ranchu-64             out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/config.ini                   out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/system-qemu.img              out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/system_ext-qemu.img          out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/ramdisk-qemu.img             out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/userdata-qemu.img            out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/advancedFeatures.ini         out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/VerifiedBootParams.textproto out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/encryptionkey.img            out/target/product/generic_x86
+cp $SRC/out/target/product/generic_x86/system/build.prop            out/target/product/generic_x86/system
+cd ..
+
+tar Jcvf ${DST}.tar.xz ${DST}
+```
+
+# Start emulator
+Emulatorを開始します。Shrinkしたoutに移動して次のコマンドを実行します。
+
+```bash:
+export ANDROID_BUILD_TOP=$PWD
+export ANDROID_PRODUCT_OUT=$PWD/out/target/product/generic_x86
+export PATH=$PATH:$PWD/linux-x86_64
+
+emulator -show-kernel -writable-system -selinux disabled
+```
+
+emulatorを終了する際には以下を実行します。
+
+```
+reboot -p
 ```
